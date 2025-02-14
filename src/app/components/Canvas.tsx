@@ -1,13 +1,21 @@
 "use client";
 
-import {useEffect, useRef} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as twgl from 'twgl.js';
 import vertexShader from "@/lib/shaders/vertex.glsl";
 import fragmentShader from "@/lib/shaders/mandelbrot.frag.glsl";
 
-export default function Canvas(){
+export default function Canvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [mounted, setMounted] = useState(false);
+
     useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!mounted) return;
+        
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -19,9 +27,10 @@ export default function Canvas(){
 
         const programInfo = twgl.createProgramInfo(gl, [vertexShader, fragmentShader]);
         const arrays = {
-            position: {numComponents: 3, data: new Float32Array(
-                [-1, -1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0]
-            )},
+            position: {
+                numComponents: 3, 
+                data: new Float32Array([-1, -1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0])
+            },
         };
 
         const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
@@ -33,6 +42,7 @@ export default function Canvas(){
             const uniforms = {
                 u_resolution: [canvas.width, canvas.height],
                 u_time: time * 0.001,
+                u_julia_constant: [-0.6, 0.4]
             };
 
             gl.useProgram(programInfo.program);
@@ -47,11 +57,16 @@ export default function Canvas(){
         return () => {
             gl.deleteProgram(programInfo.program);
         };
-    }, []);
+    }, [mounted]);
 
-    return(
-        <canvas
-            ref = {canvasRef}
+    return mounted ? (
+        <canvas 
+            ref={canvasRef}
+            style={{
+                width: '100%',
+                height: '100%',
+                display: 'block'
+            }}
         />
-    );
+    ) : null;
 }

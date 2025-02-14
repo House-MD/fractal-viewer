@@ -3,9 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   webpack: (config) => {
-    config.model?.rules?.push({
+    config.module?.rules?.push({
       test: /\.(glsl|vs|fs|vert|frag)$/,
-      use: ["raw-loader"],
+      exclude: /node_modules/,
+      type: 'asset/source',
     });
 
     return config;
