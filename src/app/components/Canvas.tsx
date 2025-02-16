@@ -8,6 +8,8 @@ import fragmentShader from "@/lib/shaders/mandelbrot.frag.glsl";
 export default function Canvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [mounted, setMounted] = useState(false);
+    const dragRef = useRef({ isDragging: false, lastX: 0, lastY: 0 });
+    const panOffsetRef = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
         setMounted(true);
@@ -19,8 +21,36 @@ export default function Canvas() {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
+        const handleMouseDown = (e: MouseEvent) => {
+            dragRef.current.isDragging = true;
+            dragRef.current.lastX = e.clientX;
+            dragRef.current.lastY = e.clientY;
+        };
+
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!dragRef.current.isDragging) return;
+
+            const deltaX = e.clientX - dragRef.current.lastX;
+            const deltaY = e.clientY - dragRef.current.lastY;
+
+            // Update the panOffset ref directly
+            panOffsetRef.current.x -= deltaX * 0.0015;
+            panOffsetRef.current.y += deltaY * 0.0015;
+
+            dragRef.current.lastX = e.clientX;
+            dragRef.current.lastY = e.clientY;
+        };
+
+        const handleMouseUp = () => {
+            dragRef.current.isDragging = false;
+        };
+
+        canvas.addEventListener('mousedown', handleMouseDown);
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+
         const gl = canvas.getContext('webgl2');
-        if(!gl) {
+        if (!gl) {
             console.error("WebGL2 not supported");
             return;
         }
@@ -42,7 +72,9 @@ export default function Canvas() {
             const uniforms = {
                 u_resolution: [canvas.width, canvas.height],
                 u_time: time * 0.001,
-                u_julia_constant: [-0.6, 0.4]
+                u_julia_constant: [-0.4, 0.6],
+                u_is_mandelbrot: false,
+                u_pan_offset: [panOffsetRef.current.x, panOffsetRef.current.y]
             };
 
             gl.useProgram(programInfo.program);
@@ -50,11 +82,14 @@ export default function Canvas() {
             twgl.setUniforms(programInfo, uniforms);
             twgl.drawBufferInfo(gl, bufferInfo, gl.TRIANGLE_STRIP);
             requestAnimationFrame(render);
-        }
+        };
 
         requestAnimationFrame(render);
 
         return () => {
+            canvas.removeEventListener('mousedown', handleMouseDown);
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
             gl.deleteProgram(programInfo.program);
         };
     }, [mounted]);
@@ -63,9 +98,9 @@ export default function Canvas() {
         <canvas 
             ref={canvasRef}
             style={{
-                width: '100%',
-                height: '100%',
-                display: 'block'
+                width: '100vw',
+                height: '100vh',
+                cursor: dragRef.current.isDragging ? 'grabbing' : 'grab'
             }}
         />
     ) : null;
