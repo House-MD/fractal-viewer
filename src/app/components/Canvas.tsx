@@ -54,8 +54,10 @@ export default function Canvas() {
             if (!dragRef.current.isDragging) return;
             const deltaX = e.clientX - dragRef.current.lastX;
             const deltaY = e.clientY - dragRef.current.lastY;
-            panOffsetRef.current.x -= deltaX * 0.0015;
-            panOffsetRef.current.y += deltaY * 0.0015;
+            const zoomAdjustedDeltaX = deltaX * 0.0015 / zoomLevelRef.current;
+            const zoomAdjustedDeltaY = deltaY * 0.0015 / zoomLevelRef.current;
+            panOffsetRef.current.x -= zoomAdjustedDeltaX;
+            panOffsetRef.current.y += zoomAdjustedDeltaY;
             dragRef.current.lastX = e.clientX;
             dragRef.current.lastY = e.clientY;
         };
@@ -67,13 +69,25 @@ export default function Canvas() {
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
             const zoomFactor = 1.1;
-            const mouseX = e.clientX / canvas.clientWidth;
-            const mouseY = e.clientY / canvas.clientHeight;
+        
+            //calculating mouse position in NDC range(-1 - 1) and adjusted for aspect ratio
+            const ndcX = (e.clientX / canvas.clientWidth * 2.0 - 1.0) * (canvas.width / canvas.height);
+            const ndcY = - (e.clientY / canvas.clientHeight * 2.0 - 1.0); // had to flip the sign for the y axis
+        
+            // zoom direction
             const zoomDirection = e.deltaY > 0 ? 1 / zoomFactor : zoomFactor;
-
-            setZoomLevel(prev => prev * zoomDirection);
-            panOffsetRef.current.x = mouseX - (mouseX - panOffsetRef.current.x) * zoomDirection;
-            panOffsetRef.current.y = mouseY - (mouseY - panOffsetRef.current.y) * zoomDirection;
+        
+            // current fractal coords under mouse
+            const fractalX = ndcX / zoomLevelRef.current + panOffsetRef.current.x;
+            const fractalY = ndcY / zoomLevelRef.current + panOffsetRef.current.y;
+        
+            // Update zoom level
+            const newZoomLevel = zoomLevelRef.current * zoomDirection;
+            setZoomLevel(newZoomLevel);
+        
+            // calculate pan offset
+            panOffsetRef.current.x = fractalX - ndcX / newZoomLevel;
+            panOffsetRef.current.y = fractalY - ndcY / newZoomLevel;
         };
 
         canvas.addEventListener('mousedown', handleMouseDown);
