@@ -21,6 +21,8 @@ export default function Canvas() {
     const colorSettingsRef = useRef(colorSettings);
     const [zoomLevel, setZoomLevel] = useState(1.0);
     const zoomLevelRef = useRef(zoomLevel);
+    const [juliaConstant, setJuliaConstant] = useState([-0.4, 0.6]); // [real, imag]
+    const juliaConstantRef = useRef(juliaConstant);
 
     useEffect(() => {
         setMounted(true);
@@ -37,6 +39,10 @@ export default function Canvas() {
     useEffect(() => {
         zoomLevelRef.current = zoomLevel;
     }, [zoomLevel]);
+
+    useEffect(() => {
+        juliaConstantRef.current = juliaConstant;
+    }, [juliaConstant]);
 
     useEffect(() => {
         if (!mounted) return;
@@ -69,23 +75,13 @@ export default function Canvas() {
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
             const zoomFactor = 1.1;
-        
-            //calculating mouse position in NDC range(-1 - 1) and adjusted for aspect ratio
             const ndcX = (e.clientX / canvas.clientWidth * 2.0 - 1.0) * (canvas.width / canvas.height);
-            const ndcY = - (e.clientY / canvas.clientHeight * 2.0 - 1.0); // had to flip the sign for the y axis
-        
-            // zoom direction
+            const ndcY = -(e.clientY / canvas.clientHeight * 2.0 - 1.0);
             const zoomDirection = e.deltaY > 0 ? 1 / zoomFactor : zoomFactor;
-        
-            // current fractal coords under mouse
             const fractalX = ndcX / zoomLevelRef.current + panOffsetRef.current.x;
             const fractalY = ndcY / zoomLevelRef.current + panOffsetRef.current.y;
-        
-            // Update zoom level
             const newZoomLevel = zoomLevelRef.current * zoomDirection;
             setZoomLevel(newZoomLevel);
-        
-            // calculate pan offset
             panOffsetRef.current.x = fractalX - ndcX / newZoomLevel;
             panOffsetRef.current.y = fractalY - ndcY / newZoomLevel;
         };
@@ -118,7 +114,7 @@ export default function Canvas() {
             const uniforms = {
                 u_resolution: [canvas.width, canvas.height],
                 u_time: time * 0.001,
-                u_julia_constant: [-0.4, 0.6],
+                u_julia_constant: juliaConstantRef.current,
                 u_is_mandelbrot: isMandelbrotRef.current,
                 u_pan_offset: [panOffsetRef.current.x, panOffsetRef.current.y],
                 u_hue_phase: colorSettingsRef.current.huePhase,
@@ -167,7 +163,6 @@ export default function Canvas() {
                         value={colorSettings.huePhase}
                         onChange={e => {
                             const newValue = parseFloat(e.target.value);
-                            console.log('New huePhase:', newValue);
                             setColorSettings(prev => ({ ...prev, huePhase: newValue }));
                         }}
                     />
@@ -206,6 +201,38 @@ export default function Canvas() {
                         step="0.01"
                         value={colorSettings.brightness}
                         onChange={e => setColorSettings(prev => ({ ...prev, brightness: parseFloat(e.target.value) }))}
+                    />
+                </label>
+                <br />
+                <label>
+                    Julia Real: {juliaConstant[0].toFixed(2)}
+                    <input
+                        type="range"
+                        min="-1.0"
+                        max="1.0"
+                        step="0.001"
+                        value={juliaConstant[0]}
+                        onChange={e => {
+                            const newReal = parseFloat(e.target.value);
+                            setJuliaConstant([newReal, juliaConstant[1]]);
+                        }}
+                        disabled={isMandelbrot}
+                    />
+                </label>
+                <br />
+                <label>
+                    Julia Imag: {juliaConstant[1].toFixed(2)}
+                    <input
+                        type="range"
+                        min="-1.0"
+                        max="1.0"
+                        step="0.001"
+                        value={juliaConstant[1]}
+                        onChange={e => {
+                            const newImag = parseFloat(e.target.value);
+                            setJuliaConstant([juliaConstant[0], newImag]);
+                        }}
+                        disabled={isMandelbrot}
                     />
                 </label>
                 <div>
