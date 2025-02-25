@@ -27,13 +27,25 @@ vec2 fractalIteration(vec2 z, vec2 c) {
             
         case 2: // Burning Ship
             z = abs(z);
-            return vec2(z.x * z.x - z.y * z.y, - 2.0 * z.x * z.y) + c;
+            return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c;
             
         case 3: // Mandelbar
             return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c;
             
-        case 4: // Mandelbar
-            return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c;
+        case 4: { // Newton
+            vec2 z3 = vec2(
+                z.x*z.x*z.x - 3.0*z.x*z.y*z.y,
+                3.0*z.x*z.x*z.y - z.y*z.y*z.y
+            );
+            vec2 numerator = 2.0 * z3 + vec2(1.0, 0.0);
+            vec2 denominator = 3.0 * vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y);
+
+            float denom = dot(denominator, denominator) + 1e-10;
+            return vec2(
+                (numerator.x*denominator.x + numerator.y*denominator.y) / denom,
+                (numerator.y*denominator.x - numerator.x*denominator.y) / denom
+            );
+        }
             
         default:
             return z;
@@ -47,23 +59,67 @@ void main() {
     uv += u_pan_offset;
 
     vec2 z, c;
+    const float PI = 3.1415926535;
     
-    // fractal-specific initialization
-    if(u_fractal_type == 0 || u_fractal_type == 2 || u_fractal_type == 3 || u_fractal_type == 4) {
-        // Mandelbrot-type sets (z0 = 0, c = pixel coordinate)
-        z = vec2(0.0);
-        c = uv;
-    } else {
-        // Julia-type sets (z0 = pixel coordinate, c = constant)
+    if(u_fractal_type == 1) { // Julia
         z = uv;
         c = u_julia_constant;
     }
+    else if(u_fractal_type == 4) { // Newton
+        z = uv;
+        c = vec2(0.0);
+    }
+    else { // Mandelbrot variants
+        z = vec2(0.0);
+        c = uv;
+    }
 
     int iterations = 0;
+    bool escaped = false;
+    bool converged = false;
+
+    // Newton fractal logic
+    if(u_fractal_type == 4) {
+        float epsilon = 0.001;
+        vec2 prev_z;
+        
+        for(int i = 0; i < u_max_iterations; i++) {
+            prev_z = z;
+            z = fractalIteration(z, c);
+            iterations++;
+            
+            if(length(z - prev_z) < epsilon) {
+                converged = true;
+                break;
+            }
+        }
+
+        if(!converged) {
+            fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            return;
+        }
+        
+        float angle = atan(z.y, z.x);
+        float sector = floor((angle + PI) / (2.0 * PI / 3.0));
+        
+        vec3 rootColor;
+        if(sector < 0.5) {        // Root 1 (1, 0)
+            rootColor = vec3(0.9, 0.4, 0.3);
+        } else if(sector < 1.5) { // Root 2 (-0.5, √3/2)
+            rootColor = vec3(0.3, 0.9, 0.4);
+        } else {                  // Root 3 (-0.5, -√3/2)
+            rootColor = vec3(0.3, 0.4, 0.9);
+        }
+        
+        float brightness = 1.0 - float(iterations)/float(u_max_iterations);
+        fragColor = vec4(rootColor * brightness, 1.0);
+        return;
+    }
+
+    // Standard fractal logic
     const float bailout = 256.0;
     const float dbail = 1e6;
     float z_mag_sq = 0.0;
-    bool escaped = false;
 
     if (u_use_derbail) {
         vec2 dc = vec2(0.0);
@@ -96,6 +152,7 @@ void main() {
         }
     }
 
+    // Original color calculation
     float nu = float(iterations);
     if (escaped) {
         float log_zn = log(z_mag_sq) / 2.0;
@@ -108,7 +165,6 @@ void main() {
     float index1 = floor(color_index);
     float index2 = index1 + 1.0;
 
-    const float PI = 3.1415926535;
     vec3 color1 = 0.5 + 0.5 * cos(index1 + vec3(0.0, 2.0 * PI / 3.0, 4.0 * PI / 3.0));
     vec3 color2 = 0.5 + 0.5 * cos(index2 + vec3(0.0, 2.0 * PI / 3.0, 4.0 * PI / 3.0));
 

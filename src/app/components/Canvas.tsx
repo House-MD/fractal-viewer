@@ -9,7 +9,8 @@ type FractalType =
   'mandelbrot' | 
   'julia' | 
   'burningShip' | 
-  'mandelbar'; 
+  'mandelbar' |
+  'newton';
 
 export default function Canvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -158,7 +159,8 @@ export default function Canvas() {
                 u_fractal_type: currentFractalType === 'mandelbrot' ? 0 :
                               currentFractalType === 'julia' ? 1 :
                               currentFractalType === 'burningShip' ? 2 :
-                              currentFractalType === 'mandelbar' ? 3 : 0,
+                              currentFractalType === 'mandelbar' ? 3 :
+                              currentFractalType === 'newton' ? 4 : 0,
                 u_pan_offset: [panOffsetRef.current.x, panOffsetRef.current.y],
                 u_hue_phase: colorSettingsRef.current.huePhase,
                 u_color_speed: colorSettingsRef.current.colorSpeed,
@@ -255,8 +257,8 @@ export default function Canvas() {
                             <option value="mandelbrot">Mandelbrot</option>
                             <option value="julia">Julia</option>
                             <option value="burningShip">Burning Ship</option>
-                            <option value="tricorn">Tricorn</option>
                             <option value="mandelbar">Mandelbar</option>
+                            <option value="newton">Newton</option>
                         </select>
                     </label>
                 </div>
