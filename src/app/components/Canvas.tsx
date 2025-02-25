@@ -143,12 +143,18 @@ export default function Canvas() {
     }, [mounted]);
 
     return mounted ? (
-        <div style={{ position: 'relative' }}>
+        <div style={{ 
+            position: 'relative', 
+            width: '100vw', 
+            height: '100vh', 
+            overflow: 'hidden' 
+        }}>
             <canvas
                 ref={canvasRef}
                 style={{
                     width: '100vw',
                     height: '100vh',
+                    
                     cursor: dragRef.current.isDragging ? 'grabbing' : 'grab',
                 }}
             />
