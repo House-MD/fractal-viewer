@@ -14,15 +14,19 @@ export default function Canvas() {
     const isMandelbrotRef = useRef(isMandelbrot);
     const [colorSettings, setColorSettings] = useState({
         huePhase: 3.0,
-        colorSpeed: 4.0,
-        saturation: 1.0,
+        colorSpeed: 0.1,
+        saturation: 0.7,
         brightness: 1.0,
     });
     const colorSettingsRef = useRef(colorSettings);
     const [zoomLevel, setZoomLevel] = useState(1.0);
     const zoomLevelRef = useRef(zoomLevel);
-    const [juliaConstant, setJuliaConstant] = useState([-0.4, 0.6]); // [real, imag]
+    const [juliaConstant, setJuliaConstant] = useState([-0.4, 0.6]);
     const juliaConstantRef = useRef(juliaConstant);
+    const [useDerbail, setUseDerbail] = useState(false);
+    const useDerbailRef = useRef(useDerbail);
+    const [maxIterations, setMaxIterations] = useState(1000);
+    const maxIterationsRef = useRef(maxIterations);
 
     useEffect(() => {
         setMounted(true);
@@ -43,6 +47,14 @@ export default function Canvas() {
     useEffect(() => {
         juliaConstantRef.current = juliaConstant;
     }, [juliaConstant]);
+
+    useEffect(() => {
+        useDerbailRef.current = useDerbail;
+    }, [useDerbail]);
+
+    useEffect(() => {
+        maxIterationsRef.current = maxIterations;
+    }, [maxIterations]);
 
     useEffect(() => {
         if (!mounted) return;
@@ -122,6 +134,8 @@ export default function Canvas() {
                 u_saturation: colorSettingsRef.current.saturation,
                 u_brightness: colorSettingsRef.current.brightness,
                 u_zoom: zoomLevelRef.current,
+                u_use_derbail: useDerbailRef.current,
+                u_max_iterations: maxIterationsRef.current, // Pass max iterations as uniform
             };
 
             gl.useProgram(programInfo.program);
@@ -142,6 +156,10 @@ export default function Canvas() {
         };
     }, [mounted]);
 
+    const handleRerender = () => {
+        setMaxIterations(prev => prev + 500); // Increase iterations by 500
+    };
+
     return mounted ? (
         <div style={{ 
             position: 'relative', 
@@ -154,7 +172,6 @@ export default function Canvas() {
                 style={{
                     width: '100vw',
                     height: '100vh',
-                    
                     cursor: dragRef.current.isDragging ? 'grabbing' : 'grab',
                 }}
             />
@@ -210,42 +227,60 @@ export default function Canvas() {
                     />
                 </label>
                 <br />
-                <label>
-                    Julia Real: {juliaConstant[0].toFixed(2)}
-                    <input
-                        type="range"
-                        min="-1.0"
-                        max="1.0"
-                        step="0.001"
-                        value={juliaConstant[0]}
-                        onChange={e => {
-                            const newReal = parseFloat(e.target.value);
-                            setJuliaConstant([newReal, juliaConstant[1]]);
-                        }}
-                        disabled={isMandelbrot}
-                    />
-                </label>
-                <br />
-                <label>
-                    Julia Imag: {juliaConstant[1].toFixed(2)}
-                    <input
-                        type="range"
-                        min="-1.0"
-                        max="1.0"
-                        step="0.001"
-                        value={juliaConstant[1]}
-                        onChange={e => {
-                            const newImag = parseFloat(e.target.value);
-                            setJuliaConstant([juliaConstant[0], newImag]);
-                        }}
-                        disabled={isMandelbrot}
-                    />
-                </label>
+                {!isMandelbrot && (
+                    <>
+                        <label>
+                            Julia Real: {juliaConstant[0].toFixed(2)}
+                            <input
+                                type="range"
+                                min="-1.0"
+                                max="1.0"
+                                step="0.000001"
+                                value={juliaConstant[0]}
+                                onChange={e => {
+                                    const newReal = parseFloat(e.target.value);
+                                    setJuliaConstant([newReal, juliaConstant[1]]);
+                                }}
+                            />
+                        </label>
+                        <br />
+                        <label>
+                            Julia Imag: {juliaConstant[1].toFixed(2)}
+                            <input
+                                type="range"
+                                min="-1.0"
+                                max="1.0"
+                                step="0.000001"
+                                value={juliaConstant[1]}
+                                onChange={e => {
+                                    const newImag = parseFloat(e.target.value);
+                                    setJuliaConstant([juliaConstant[0], newImag]);
+                                }}
+                            />
+                        </label>
+                        <br />
+                    </>
+                )}
                 <div>
                     <button onClick={() => setIsMandelbrot(prev => !prev)}>
                         Toggle Fractal Type
                     </button>
                 </div>
+                <br />
+                <label>
+                    Iteration Method:
+                    <select
+                        value={useDerbail ? "Derbail" : "Standard"}
+                        onChange={e => setUseDerbail(e.target.value === "Derbail")}
+                    >
+                        <option value="Standard">Standard</option>
+                        <option value="Derbail">Derbail</option>
+                    </select>
+                </label>
+                <br />
+                <button onClick={handleRerender}>
+                    Rerender with More Detail (Iterations: {maxIterations})
+                </button>
             </div>
         </div>
     ) : null;
