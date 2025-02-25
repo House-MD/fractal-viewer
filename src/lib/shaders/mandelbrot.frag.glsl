@@ -9,10 +9,9 @@ uniform vec2 u_pan_offset;
 uniform float u_hue_phase;
 uniform float u_color_speed;
 uniform float u_saturation;
-uniform float u_brightness;
 uniform float u_zoom;
 uniform bool u_use_derbail;
-uniform int u_max_iterations; // Added as uniform
+uniform int u_max_iterations;
 
 out vec4 fragColor;
 
@@ -95,7 +94,7 @@ void main() {
     // Linearly interpolate between color1 and color2
     vec3 rgb;
     if (iterations == u_max_iterations && !escaped) {
-        rgb = vec3(0.0);  // Black for points inside the set
+        rgb = vec3(0.0);
     } else {
         rgb = mix(color1, color2, t);
     }
@@ -103,7 +102,6 @@ void main() {
     // Apply saturation and brightness
     float gray = dot(rgb, vec3(0.299, 0.587, 0.114));
     vec3 desaturated = mix(vec3(gray), rgb, u_saturation);
-    vec3 finalColor = clamp(desaturated * u_brightness, 0.0, 1.0);
 
-    fragColor = vec4(finalColor, 1.0);
+    fragColor = vec4(desaturated, 1.0);
 }

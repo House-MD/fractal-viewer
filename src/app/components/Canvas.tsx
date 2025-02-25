@@ -16,7 +16,6 @@ export default function Canvas() {
         huePhase: 3.0,
         colorSpeed: 0.1,
         saturation: 0.7,
-        brightness: 1.0,
     });
     const colorSettingsRef = useRef(colorSettings);
     const [zoomLevel, setZoomLevel] = useState(1.0);
@@ -27,6 +26,8 @@ export default function Canvas() {
     const useDerbailRef = useRef(useDerbail);
     const [maxIterations, setMaxIterations] = useState(1000);
     const maxIterationsRef = useRef(maxIterations);
+    const [isAnimating, setIsAnimating] = useState(false);
+    const isAnimatingRef = useRef(isAnimating);
 
     useEffect(() => {
         setMounted(true);
@@ -55,6 +56,16 @@ export default function Canvas() {
     useEffect(() => {
         maxIterationsRef.current = maxIterations;
     }, [maxIterations]);
+
+    useEffect(() => {
+        isAnimatingRef.current = isAnimating;
+      }, [isAnimating]);
+
+    useEffect(() => {
+        if (!isAnimating) {
+          setJuliaConstant([...juliaConstantRef.current]);
+        }
+      }, [isAnimating]);
 
     useEffect(() => {
         if (!mounted) return;
@@ -123,6 +134,15 @@ export default function Canvas() {
             twgl.resizeCanvasToDisplaySize(canvas);
             gl.viewport(0, 0, canvas.width, canvas.height);
 
+            if (isAnimatingRef.current) {
+
+                const speed = 0.2;
+                const amplitude = 0.8;
+                const real = Math.sin(time * 0.001 * speed) * amplitude;
+                const imag = Math.cos(time * 0.001 * speed) * amplitude;
+                juliaConstantRef.current = [real, imag];
+              }
+
             const uniforms = {
                 u_resolution: [canvas.width, canvas.height],
                 u_time: time * 0.001,
@@ -132,7 +152,6 @@ export default function Canvas() {
                 u_hue_phase: colorSettingsRef.current.huePhase,
                 u_color_speed: colorSettingsRef.current.colorSpeed,
                 u_saturation: colorSettingsRef.current.saturation,
-                u_brightness: colorSettingsRef.current.brightness,
                 u_zoom: zoomLevelRef.current,
                 u_use_derbail: useDerbailRef.current,
                 u_max_iterations: maxIterationsRef.current, // Pass max iterations as uniform
@@ -215,18 +234,6 @@ export default function Canvas() {
                     />
                 </label>
                 <br />
-                <label>
-                    Brightness:
-                    <input
-                        type="range"
-                        min="0"
-                        max="2"
-                        step="0.01"
-                        value={colorSettings.brightness}
-                        onChange={e => setColorSettings(prev => ({ ...prev, brightness: parseFloat(e.target.value) }))}
-                    />
-                </label>
-                <br />
                 {!isMandelbrot && (
                     <>
                         <label>
@@ -259,7 +266,11 @@ export default function Canvas() {
                             />
                         </label>
                         <br />
+                        <button onClick={() => setIsAnimating(prev => !prev)}>
+                        {isAnimating ? 'Stop Animation' : 'Start Animation'}
+                        </button>
                     </>
+                    
                 )}
                 <div>
                     <button onClick={() => setIsMandelbrot(prev => !prev)}>
