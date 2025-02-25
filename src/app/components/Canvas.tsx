@@ -5,13 +5,19 @@ import * as twgl from 'twgl.js';
 import vertexShader from "@/lib/shaders/vertex.glsl";
 import fragmentShader from "@/lib/shaders/mandelbrot.frag.glsl";
 
+type FractalType = 
+  'mandelbrot' | 
+  'julia' | 
+  'burningShip' | 
+  'mandelbar'; 
+
 export default function Canvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [mounted, setMounted] = useState(false);
     const dragRef = useRef({ isDragging: false, lastX: 0, lastY: 0 });
     const panOffsetRef = useRef({ x: 0, y: 0 });
-    const [isMandelbrot, setIsMandelbrot] = useState(true);
-    const isMandelbrotRef = useRef(isMandelbrot);
+    const [fractalType, setFractalType] = useState<FractalType>('mandelbrot');
+    const fractalTypeRef = useRef(fractalType);
     const [colorSettings, setColorSettings] = useState({
         huePhase: 3.0,
         colorSpeed: 0.1,
@@ -26,7 +32,7 @@ export default function Canvas() {
     const useDerbailRef = useRef(useDerbail);
     const [maxIterations, setMaxIterations] = useState(1000);
     const maxIterationsRef = useRef(maxIterations);
-    const [isAnimating, setIsAnimating] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(true);
     const isAnimatingRef = useRef(isAnimating);
 
     useEffect(() => {
@@ -34,8 +40,8 @@ export default function Canvas() {
     }, []);
 
     useEffect(() => {
-        isMandelbrotRef.current = isMandelbrot;
-    }, [isMandelbrot]);
+        fractalTypeRef.current = fractalType;
+    }, [fractalType]);
 
     useEffect(() => {
         colorSettingsRef.current = colorSettings;
@@ -59,13 +65,13 @@ export default function Canvas() {
 
     useEffect(() => {
         isAnimatingRef.current = isAnimating;
-      }, [isAnimating]);
+    }, [isAnimating]);
 
     useEffect(() => {
         if (!isAnimating) {
-          setJuliaConstant([...juliaConstantRef.current]);
+            setJuliaConstant([...juliaConstantRef.current]);
         }
-      }, [isAnimating]);
+    }, [isAnimating]);
 
     useEffect(() => {
         if (!mounted) return;
@@ -134,27 +140,32 @@ export default function Canvas() {
             twgl.resizeCanvasToDisplaySize(canvas);
             gl.viewport(0, 0, canvas.width, canvas.height);
 
-            if (isAnimatingRef.current) {
+            const currentFractalType = fractalTypeRef.current;
 
-                const speed = 0.2;
+
+            if (isAnimatingRef.current) {
+                const speed = 0.5;
                 const amplitude = 0.8;
                 const real = Math.sin(time * 0.001 * speed) * amplitude;
                 const imag = Math.cos(time * 0.001 * speed) * amplitude;
                 juliaConstantRef.current = [real, imag];
-              }
+            }
 
             const uniforms = {
                 u_resolution: [canvas.width, canvas.height],
                 u_time: time * 0.001,
                 u_julia_constant: juliaConstantRef.current,
-                u_is_mandelbrot: isMandelbrotRef.current,
+                u_fractal_type: currentFractalType === 'mandelbrot' ? 0 :
+                              currentFractalType === 'julia' ? 1 :
+                              currentFractalType === 'burningShip' ? 2 :
+                              currentFractalType === 'mandelbar' ? 3 : 0,
                 u_pan_offset: [panOffsetRef.current.x, panOffsetRef.current.y],
                 u_hue_phase: colorSettingsRef.current.huePhase,
                 u_color_speed: colorSettingsRef.current.colorSpeed,
                 u_saturation: colorSettingsRef.current.saturation,
                 u_zoom: zoomLevelRef.current,
                 u_use_derbail: useDerbailRef.current,
-                u_max_iterations: maxIterationsRef.current, // Pass max iterations as uniform
+                u_max_iterations: maxIterationsRef.current,
             };
 
             gl.useProgram(programInfo.program);
@@ -171,12 +182,12 @@ export default function Canvas() {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
             canvas.removeEventListener('wheel', handleWheel);
-            gl.deleteProgram(programInfo.program);
+            if (gl) gl.deleteProgram(programInfo.program);
         };
     }, [mounted]);
 
     const handleRerender = () => {
-        setMaxIterations(prev => prev + 500); // Increase iterations by 500
+        setMaxIterations(prev => prev + 500);
     };
 
     return mounted ? (
@@ -234,7 +245,22 @@ export default function Canvas() {
                     />
                 </label>
                 <br />
-                {!isMandelbrot && (
+                <div>
+                    <label>
+                        Fractal Type:
+                        <select
+                            value={fractalType}
+                            onChange={e => setFractalType(e.target.value as FractalType)}
+                        >
+                            <option value="mandelbrot">Mandelbrot</option>
+                            <option value="julia">Julia</option>
+                            <option value="burningShip">Burning Ship</option>
+                            <option value="tricorn">Tricorn</option>
+                            <option value="mandelbar">Mandelbar</option>
+                        </select>
+                    </label>
+                </div>
+                {fractalType === 'julia' && (
                     <>
                         <label>
                             Julia Real: {juliaConstant[0].toFixed(2)}
@@ -267,16 +293,10 @@ export default function Canvas() {
                         </label>
                         <br />
                         <button onClick={() => setIsAnimating(prev => !prev)}>
-                        {isAnimating ? 'Stop Animation' : 'Start Animation'}
+                            {isAnimating ? 'Stop Animation' : 'Animate Julia'}
                         </button>
                     </>
-                    
                 )}
-                <div>
-                    <button onClick={() => setIsMandelbrot(prev => !prev)}>
-                        Toggle Fractal Type
-                    </button>
-                </div>
                 <br />
                 <label>
                     Iteration Method:
