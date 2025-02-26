@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { use, useEffect, useRef, useState } from 'react';
 import * as twgl from 'twgl.js';
 import vertexShader from "@/lib/shaders/vertex.glsl";
 import fragmentShader from "@/lib/shaders/mandelbrot.frag.glsl";
@@ -10,7 +10,8 @@ type FractalType =
   'julia' | 
   'burningShip' | 
   'mandelbar' |
-  'newton';
+  'newton' | 
+  'pheonix';
 
 export default function Canvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -29,9 +30,11 @@ export default function Canvas() {
     const zoomLevelRef = useRef(zoomLevel);
     const [juliaConstant, setJuliaConstant] = useState([-0.4, 0.6]);
     const juliaConstantRef = useRef(juliaConstant);
+    const [pheonixConstant, setPheonixConstant] = useState([0.3, 0.4]);
+    const pheonixConstantRef = useRef(pheonixConstant);
     const [useDerbail, setUseDerbail] = useState(false);
     const useDerbailRef = useRef(useDerbail);
-    const [maxIterations, setMaxIterations] = useState(1000);
+    const [maxIterations, setMaxIterations] = useState(100);
     const maxIterationsRef = useRef(maxIterations);
     const [isAnimating, setIsAnimating] = useState(true);
     const isAnimatingRef = useRef(isAnimating);
@@ -57,6 +60,10 @@ export default function Canvas() {
     }, [juliaConstant]);
 
     useEffect(() => {
+        pheonixConstantRef.current = pheonixConstant;
+    }, [pheonixConstant])
+
+    useEffect(() => {
         useDerbailRef.current = useDerbail;
     }, [useDerbail]);
 
@@ -71,6 +78,7 @@ export default function Canvas() {
     useEffect(() => {
         if (!isAnimating) {
             setJuliaConstant([...juliaConstantRef.current]);
+            setPheonixConstant([...pheonixConstantRef.current]);
         }
     }, [isAnimating]);
 
@@ -156,11 +164,13 @@ export default function Canvas() {
                 u_resolution: [canvas.width, canvas.height],
                 u_time: time * 0.001,
                 u_julia_constant: juliaConstantRef.current,
+                u_p_constant: pheonixConstantRef.current,
                 u_fractal_type: currentFractalType === 'mandelbrot' ? 0 :
                               currentFractalType === 'julia' ? 1 :
                               currentFractalType === 'burningShip' ? 2 :
                               currentFractalType === 'mandelbar' ? 3 :
-                              currentFractalType === 'newton' ? 4 : 0,
+                              currentFractalType === 'newton' ? 4 :
+                              currentFractalType === 'pheonix' ? 5 : 0,
                 u_pan_offset: [panOffsetRef.current.x, panOffsetRef.current.y],
                 u_hue_phase: colorSettingsRef.current.huePhase,
                 u_color_speed: colorSettingsRef.current.colorSpeed,
@@ -189,7 +199,7 @@ export default function Canvas() {
     }, [mounted]);
 
     const handleRerender = () => {
-        setMaxIterations(prev => prev + 500);
+        setMaxIterations(prev => prev * 2);
     };
 
     return mounted ? (
@@ -259,10 +269,11 @@ export default function Canvas() {
                             <option value="burningShip">Burning Ship</option>
                             <option value="mandelbar">Mandelbar</option>
                             <option value="newton">Newton</option>
+                            <option value="pheonix">Pheonix</option>
                         </select>
                     </label>
                 </div>
-                {fractalType === 'julia' && (
+                {(fractalType === 'julia' || fractalType === 'pheonix') && (
                     <>
                         <label>
                             Julia Real: {juliaConstant[0].toFixed(2)}
@@ -297,8 +308,44 @@ export default function Canvas() {
                         <button onClick={() => setIsAnimating(prev => !prev)}>
                             {isAnimating ? 'Stop Animation' : 'Animate Julia'}
                         </button>
+                        <br></br>
                     </>
                 )}
+                {fractalType === 'pheonix' && (
+                    <>
+                        <label>
+                        Pheonix Real: {pheonixConstant[0].toFixed(2)}
+                            <input
+                                type="range"
+                                min="-1.0"
+                                max="1.0"
+                                step="0.000001"
+                                value={pheonixConstant[0]}
+                                onChange={e => {
+                                    const newReal = parseFloat(e.target.value);
+                                    setPheonixConstant([newReal, pheonixConstant[1]]);
+                                }}
+                            />
+                        </label>
+                        <br />
+                        <label>
+                            Pheonix Imag: {pheonixConstant[1].toFixed(2)}
+                            <input
+                                type="range"
+                                min="-1.0"
+                                max="1.0"
+                                step="0.000001"
+                                value={pheonixConstant[1]}
+                                onChange={e => {
+                                    const newImag = parseFloat(e.target.value);
+                                    setPheonixConstant([pheonixConstant[0], newImag]);
+                                }}
+                            />
+                        </label>
+                        <br />
+                    </>
+                )}
+
                 <br />
                 <label>
                     Iteration Method:
