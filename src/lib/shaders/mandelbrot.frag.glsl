@@ -24,17 +24,13 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
     switch(u_fractal_type) {
         case 0: // Mandelbrot
             return z_squared + c;
-            
         case 1: // Julia
             return z_squared + u_julia_constant;
-            
         case 2: // Burning Ship
             z = abs(z);
             return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c;
-            
         case 3: // Mandelbar
             return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c;
-            
         case 4: // Newton
             vec2 z3 = vec2(
                 z.x*z.x*z.x - 3.0*z.x*z.y*z.y,
@@ -47,10 +43,16 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
                 (numerator.x*denominator.x + numerator.y*denominator.y) / denom,
                 (numerator.y*denominator.x - numerator.x*denominator.y) / denom
             );
-            
         case 5: // Phoenix
             return z_squared + c + u_p_constant * z_prev;
-            
+        case 6: // Cubic Mandelbrot
+            vec2 z_cubed = vec2(
+                z.x * z.x * z.x - 3.0 * z.x * z.y * z.y,
+                3.0 * z.x * z.x * z.y - z.y * z.y * z.y
+            );
+            return z_cubed + c;
+        case 7: // Sine Julia
+            return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y)) + u_julia_constant;
         default:
             return z;
     }
@@ -65,7 +67,7 @@ void main() {
     vec2 z, c;
     const float PI = 3.1415926535;
     
-    if(u_fractal_type == 1 || u_fractal_type == 5) { // Julia and Phoenix
+    if(u_fractal_type == 1 || u_fractal_type == 5 || u_fractal_type == 7) { // Julia, Phoenix, and Sine Julia
         z = uv;
         c = u_julia_constant;
     }
@@ -73,7 +75,7 @@ void main() {
         z = uv;
         c = vec2(0.0);
     }
-    else { // Mandelbrot variants
+    else { // Mandelbrot variants (including Cubic Mandelbrot)
         z = vec2(0.0);
         c = uv;
     }
@@ -81,7 +83,7 @@ void main() {
     int iterations = 0;
     bool escaped = false;
     bool converged = false;
-    
+
     // Newton fractal logic
     if(u_fractal_type == 4) {
         float epsilon = 0.001;
@@ -89,9 +91,8 @@ void main() {
         
         for(int i = 0; i < u_max_iterations; i++) {
             prev_z = z;
-            z = fractalIteration(z, c, vec2(0.0)); // z_prev not used for Newton
+            z = fractalIteration(z, c, vec2(0.0));
             iterations++;
-            
             if(length(z - prev_z) < epsilon) {
                 converged = true;
                 break;
@@ -105,7 +106,6 @@ void main() {
         
         float angle = atan(z.y, z.x);
         float sector = floor((angle + PI) / (2.0 * PI / 3.0));
-        
         vec3 rootColor;
         if(sector < 0.5) {        // Root 1 (1, 0)
             rootColor = vec3(0.9, 0.4, 0.3);
@@ -120,11 +120,12 @@ void main() {
         return;
     }
 
-    // Standard fractal logic (including Phoenix)
-    const float bailout = 256.0;
+    // Standard fractal logic
+
+    const float bailout = 256.0; // Lower bailout for Sine Julia
     const float dbail = 1e6;
     float z_mag_sq = 0.0;
-    vec2 z_prev = vec2(0.0); // Previous z for Phoenix
+    vec2 z_prev = vec2(0.0);
 
     if (u_use_derbail) {
         vec2 dc = vec2(0.0);
@@ -136,7 +137,7 @@ void main() {
                 dc.x * z.y + dc.y * z.x
             ) + vec2(1.0, 0.0);
             dc_sum += dc_new;
-            z_prev = z; // Update previous z for Phoenix
+            z_prev = z;
             z = z_new;
             dc = dc_new;
             if (dot(dc_sum, dc_sum) >= dbail) {
@@ -153,13 +154,10 @@ void main() {
             z_prev = z;
             z = z_new;
             z_mag_sq = dot(z, z);
-            
-            // Early exit for stable points
             if (abs(z_mag_sq - prev_mag_sq) < 1e-6) {
                 break;
             }
             prev_mag_sq = z_mag_sq;
-            
             if (z_mag_sq > bailout) {
                 escaped = true;
                 break;

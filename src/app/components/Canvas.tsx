@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as twgl from 'twgl.js';
 import vertexShader from "@/lib/shaders/vertex.glsl";
 import fragmentShader from "@/lib/shaders/mandelbrot.frag.glsl";
@@ -11,7 +11,9 @@ type FractalType =
   'burningShip' | 
   'mandelbar' |
   'newton' | 
-  'pheonix';
+  'pheonix' | 
+  'cubicMandelbrot' |
+  'sineJulia'; 
 
 export default function Canvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -61,7 +63,7 @@ export default function Canvas() {
 
     useEffect(() => {
         pheonixConstantRef.current = pheonixConstant;
-    }, [pheonixConstant])
+    }, [pheonixConstant]);
 
     useEffect(() => {
         useDerbailRef.current = useDerbail;
@@ -151,7 +153,6 @@ export default function Canvas() {
 
             const currentFractalType = fractalTypeRef.current;
 
-
             if (isAnimatingRef.current) {
                 const speed = 0.5;
                 const amplitude = 0.8;
@@ -170,7 +171,9 @@ export default function Canvas() {
                               currentFractalType === 'burningShip' ? 2 :
                               currentFractalType === 'mandelbar' ? 3 :
                               currentFractalType === 'newton' ? 4 :
-                              currentFractalType === 'pheonix' ? 5 : 0,
+                              currentFractalType === 'pheonix' ? 5 :
+                              currentFractalType === 'cubicMandelbrot' ? 6 :
+                              currentFractalType === 'sineJulia' ? 7 : 0,
                 u_pan_offset: [panOffsetRef.current.x, panOffsetRef.current.y],
                 u_hue_phase: colorSettingsRef.current.huePhase,
                 u_color_speed: colorSettingsRef.current.colorSpeed,
@@ -269,11 +272,13 @@ export default function Canvas() {
                             <option value="burningShip">Burning Ship</option>
                             <option value="mandelbar">Mandelbar</option>
                             <option value="newton">Newton</option>
-                            <option value="pheonix">Pheonix</option>
+                            <option value="pheonix">Phoenix</option>
+                            <option value="cubicMandelbrot">Cubic Mandelbrot</option>
+                            <option value="sineJulia">Sine Julia</option>
                         </select>
                     </label>
                 </div>
-                {(fractalType === 'julia' || fractalType === 'pheonix') && (
+                {(fractalType === 'julia' || fractalType === 'pheonix' || fractalType === 'sineJulia') && (
                     <>
                         <label>
                             Julia Real: {juliaConstant[0].toFixed(2)}
@@ -308,13 +313,13 @@ export default function Canvas() {
                         <button onClick={() => setIsAnimating(prev => !prev)}>
                             {isAnimating ? 'Stop Animation' : 'Animate Julia'}
                         </button>
-                        <br></br>
+                        <br />
                     </>
                 )}
                 {fractalType === 'pheonix' && (
                     <>
                         <label>
-                        Pheonix Real: {pheonixConstant[0].toFixed(2)}
+                            Phoenix Real: {pheonixConstant[0].toFixed(2)}
                             <input
                                 type="range"
                                 min="-1.0"
@@ -329,7 +334,7 @@ export default function Canvas() {
                         </label>
                         <br />
                         <label>
-                            Pheonix Imag: {pheonixConstant[1].toFixed(2)}
+                            Phoenix Imag: {pheonixConstant[1].toFixed(2)}
                             <input
                                 type="range"
                                 min="-1.0"
@@ -345,7 +350,6 @@ export default function Canvas() {
                         <br />
                     </>
                 )}
-
                 <br />
                 <label>
                     Iteration Method:
