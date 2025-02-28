@@ -53,6 +53,8 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
             return z_cubed + c;
         case 7: // Sine Julia
             return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y)) + u_julia_constant;
+        case 8: //Exponential Julia
+            return vec2(exp(z.x) * cos(z.y), exp(z.x) * sin(z.y)) + u_julia_constant;
         default:
             return z;
     }
@@ -67,7 +69,7 @@ void main() {
     vec2 z, c;
     const float PI = 3.1415926535;
     
-    if(u_fractal_type == 1 || u_fractal_type == 5 || u_fractal_type == 7) { // Julia, Phoenix, and Sine Julia
+    if(u_fractal_type == 1 || u_fractal_type == 5 || u_fractal_type == 7 || u_fractal_type == 8) { // Julia, Phoenix, and Sine Julia
         z = uv;
         c = u_julia_constant;
     }
