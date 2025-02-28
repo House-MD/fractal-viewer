@@ -26,37 +26,36 @@ function generateFernPoints(time: number): Float32Array {
     let y = 0;
 
     // Time-based bend factor for animation
-    const bendFactor = Math.sin(time * 0.001); // Slow oscillation
+const bendFactor = Math.sin(time * 0.001); // Slow oscillation
 
-    for (let i = 0; i < 100000; i++) {
-        const r = Math.random();
-        let xNew, yNew;
+for (let i = 0; i < 100000; i++) {
+    const r = Math.random();
+    let xNew, yNew;
 
-        if (r < 0.01) {
-            // Stem (unchanged)
-            xNew = 0;
-            yNew = 0.16 * y;
-        } else if (r < 0.86) {
-            // Upper fern (unchanged for simplicity)
-            xNew = 0.85 * x + 0.04 * y;
-            yNew = -0.04 * x + 0.85 * y + 1.6;
-        } else if (r < 0.93) {
-            // Right leaflets (animate curvature)
-            const bend = 0.26 * (1 + bendFactor * 0.5); // Modulate rotation/shear
-            xNew = 0.20 * x - bend * y;
-            yNew = 0.23 * x + 0.22 * y + 1.6;
-        } else {
-            // Left leaflets (animate curvature)
-            const bend = 0.28 * (1 - bendFactor * 0.5); // Opposite direction
-            xNew = -0.15 * x + bend * y;
-            yNew = 0.26 * x + 0.24 * y + 0.44;
-        }
-
-        x = xNew;
-        y = yNew;
-        points[i * 2] = x;
-        points[i * 2 + 1] = y;
+    if (r < 0.01) {
+        // Stem
+        xNew = 0.05;
+        yNew = 0.16 * y;
+    } else if (r < 0.86) {
+        // Upper fern
+        const rotationFactor = 0.04 * (1 + bendFactor);
+        xNew = 0.85 * x + rotationFactor * y;
+        yNew = -rotationFactor * x + 0.85 * y + 1.6;
+    } else if (r < 0.93) {
+        // Right leaflets 
+        xNew = 0.20 * x - 0.26 * y;
+        yNew = 0.23 * x + 0.22 * y + 1.6;
+    } else {
+        // Left leaflets
+        xNew = -0.15 * x + 0.28 * y;
+        yNew = 0.26 * x + 0.24 * y + 0.44;
     }
+
+    x = xNew;
+    y = yNew;
+    points[i * 2] = x;
+    points[i * 2 + 1] = y;
+}
 
     return points;
 }
@@ -206,7 +205,6 @@ export default function Canvas() {
         const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
         const pointProgramInfo = twgl.createProgramInfo(gl, [pointVertexShader, pointFragmentShader]);
 
-        // Initialize Barnsley Fern buffer only once
         let barnsleyBufferInfo = null;
         if (fractalType === 'barnsleyFern' && !barnsleyBufferInfoRef.current) {
             barnsleyBufferInfo = twgl.createBufferInfoFromArrays(gl, {
@@ -259,19 +257,22 @@ export default function Canvas() {
 
                 twgl.setUniforms(pointProgramInfo, {
                     u_modelViewProjection: modelViewProjection,
-                    u_color: [0, 1, 0, 1], // Green color for the fern
+                    u_color: [0, 1, 0, 1],
                 });
                 gl.drawArrays(gl.POINTS, 0, fernPoints.length / 2);
             } else {
                 // Rendering for other fractals
-                if (isPheonixConstAnimatingRef.current) {
+                if (currentFractalType === 'pheonix' && isPheonixConstAnimatingRef.current) {
                     const speed = 0.4;
                     const amplitude = 0.8;
                     const real = Math.sin(time * 0.001 * speed) * amplitude;
                     const imag = Math.cos(time * 0.001 * speed) * amplitude;
                     pheonixConstantRef.current = [real, imag];
                 }
-                if (isJuliaConstAnimatingRef.current) {
+                if ((currentFractalType === 'julia' ||
+                    currentFractalType === 'pheonix' ||
+                    currentFractalType === 'expJulia' ||
+                    currentFractalType === 'sineJulia') && isJuliaConstAnimatingRef.current) {
                     const speed = 0.4;
                     const amplitude = 0.8;
                     const real = Math.sin(time * 0.001 * speed) * amplitude;
