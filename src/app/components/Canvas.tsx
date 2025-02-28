@@ -38,8 +38,11 @@ export default function Canvas() {
     const useDerbailRef = useRef(useDerbail);
     const [maxIterations, setMaxIterations] = useState(100);
     const maxIterationsRef = useRef(maxIterations);
-    const [isAnimating, setIsAnimating] = useState(true);
-    const isAnimatingRef = useRef(isAnimating);
+    const [isJuliaConstAnimating, setIsJuliaConstAnimating] = useState(false);
+    const isJuliaConstAnimatingRef = useRef(isJuliaConstAnimating);
+    const [isPheonixConstAnimating, setIsPheonixConstAnimating] = useState(false);
+    const isPheonixConstAnimatingRef = useRef(isPheonixConstAnimating);
+
 
     useEffect(() => {
         setMounted(true);
@@ -74,15 +77,24 @@ export default function Canvas() {
     }, [maxIterations]);
 
     useEffect(() => {
-        isAnimatingRef.current = isAnimating;
-    }, [isAnimating]);
+        isJuliaConstAnimatingRef.current = isJuliaConstAnimating;
+    }, [isJuliaConstAnimating]);
 
     useEffect(() => {
-        if (!isAnimating) {
-            setJuliaConstant([...juliaConstantRef.current]);
+        isPheonixConstAnimatingRef.current = isPheonixConstAnimating;
+    }, [isPheonixConstAnimating]);
+
+    useEffect(() => {
+        if (!isPheonixConstAnimating) {
             setPheonixConstant([...pheonixConstantRef.current]);
         }
-    }, [isAnimating]);
+    }, [isPheonixConstAnimating])
+
+    useEffect(() => {
+        if (!isJuliaConstAnimating) {
+            setJuliaConstant([...juliaConstantRef.current]);
+        }
+    }, [isJuliaConstAnimating]);
 
     useEffect(() => {
         if (!mounted) return;
@@ -153,8 +165,16 @@ export default function Canvas() {
 
             const currentFractalType = fractalTypeRef.current;
 
-            if (isAnimatingRef.current) {
-                const speed = 0.5;
+            if (isPheonixConstAnimatingRef.current) {
+                const speed = 0.4;
+                const amplitude = 0.8;
+                const real = Math.sin(time * 0.001 * speed) * amplitude;
+                const imag = Math.cos(time * 0.001 * speed) * amplitude;
+                pheonixConstantRef.current = [real, imag];
+            }
+
+            if (isJuliaConstAnimatingRef.current) {
+                const speed = 0.4;
                 const amplitude = 0.8;
                 const real = Math.sin(time * 0.001 * speed) * amplitude;
                 const imag = Math.cos(time * 0.001 * speed) * amplitude;
@@ -310,8 +330,12 @@ export default function Canvas() {
                             />
                         </label>
                         <br />
-                        <button onClick={() => setIsAnimating(prev => !prev)}>
-                            {isAnimating ? 'Stop Animation' : 'Animate Julia'}
+                        <button onClick={() => setIsJuliaConstAnimating(prev => !prev)}>
+                            {isJuliaConstAnimating ? 'Stop Animation' : 'Animate Julia'}
+                        </button>
+                        <br />
+                        <button onClick={() => setIsPheonixConstAnimating(prev => !prev)}>
+                            {isPheonixConstAnimating  ? 'Stop Animation' : 'Animate Pheonix'}
                         </button>
                         <br />
                     </>
@@ -350,6 +374,7 @@ export default function Canvas() {
                         <br />
                     </>
                 )}
+                {}
                 <br />
                 <label>
                     Iteration Method:
