@@ -23,15 +23,10 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
     vec2 z_squared = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y);
     
     switch(u_fractal_type) {
-        case 0: // Mandelbrot
-            return z_squared + c;
-        case 1: // Julia
-            return z_squared + u_julia_constant;
-        case 2: // Burning Ship
-            z = abs(z);
-            return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c;
-        case 3: // Mandelbar
-            return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c;
+        case 0: return z_squared + c; // Mandelbrot
+        case 1: return z_squared + u_julia_constant; // Julia
+        case 2: z = abs(z); return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c; // Burning Ship
+        case 3: return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c; // Mandelbar
         case 4: // Newton
             vec2 z3 = vec2(
                 z.x*z.x*z.x - 3.0*z.x*z.y*z.y,
@@ -44,32 +39,27 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
                 (numerator.x*denominator.x + numerator.y*denominator.y) / denom,
                 (numerator.y*denominator.x - numerator.x*denominator.y) / denom
             );
-        case 5: // Phoenix
-            return z_squared + c + u_p_constant * z_prev;
+        case 5: return z_squared + c + u_p_constant * z_prev; // Phoenix
         case 6: // Cubic Mandelbrot
             vec2 z_cubed = vec2(
                 z.x * z.x * z.x - 3.0 * z.x * z.y * z.y,
                 3.0 * z.x * z.x * z.y - z.y * z.y * z.y
             );
             return z_cubed + c;
-        case 7: // Sine Julia
-            return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y)) + u_julia_constant;
-        case 8: // Exponential Julia
-            return vec2(exp(z.x) * cos(z.y), exp(z.x) * sin(z.y)) + u_julia_constant;
-        default:
-            return z;
+        case 7: return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y)) + u_julia_constant; // Sine Julia
+        case 8: return vec2(exp(z.x) * cos(z.y), exp(z.x) * sin(z.y)) + u_julia_constant; // Exponential Julia
+        default: return z;
     }
 }
 
 void main() {
-    // Compute uv with high precision
-    vec2 uv_high = (gl_FragCoord.xy / u_resolution) * 2.0 - 1.0;
-    uv_high.x *= u_resolution.x / u_resolution.y;
-    uv_high /= u_zoom;
-    
-    // For simplicity, uv_low is set to zero; it can be computed if needed
-    vec2 uv_low = vec2(0.0);
-    vec2 uv = uv_high + uv_low + u_pan_offset_high + u_pan_offset_low;
+    // Compute uv with enhanced precision
+    vec2 center_coord = u_resolution / 2.0;
+    vec2 delta_pixel = gl_FragCoord.xy - center_coord;
+    float pixel_step_x = (2.0 * (u_resolution.x / u_resolution.y)) / (u_resolution.x * u_zoom);
+    float pixel_step_y = 2.0 / (u_resolution.y * u_zoom);
+    vec2 delta_c = vec2(delta_pixel.x * pixel_step_x, delta_pixel.y * pixel_step_y);
+    vec2 uv = u_pan_offset_high + (u_pan_offset_low + delta_c);
 
     vec2 z, c;
     const float PI = 3.1415926535;
