@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@types/webgl2": "^0.0.11",
+    "decimal.js": "^10.5.0",
     "next": "15.1.7",
     "raw-loader": "^4.0.2",
     "react": "^19.0.0",

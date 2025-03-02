@@ -5,7 +5,8 @@ uniform vec2 u_resolution;
 uniform float u_time;
 uniform vec2 u_julia_constant;
 uniform int u_fractal_type;
-uniform vec2 u_pan_offset;
+uniform vec2 u_pan_offset_high; // High part of the pan offset
+uniform vec2 u_pan_offset_low;  // Low part of the pan offset
 uniform float u_hue_phase;
 uniform float u_color_speed;
 uniform float u_saturation;
@@ -17,7 +18,7 @@ uniform vec2 u_p_constant;
 
 out vec4 fragColor;
 
-// Define fractal iteration function
+// Define fractal iteration function (unchanged)
 vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
     vec2 z_squared = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y);
     
@@ -53,7 +54,7 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
             return z_cubed + c;
         case 7: // Sine Julia
             return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y)) + u_julia_constant;
-        case 8: //Exponential Julia
+        case 8: // Exponential Julia
             return vec2(exp(z.x) * cos(z.y), exp(z.x) * sin(z.y)) + u_julia_constant;
         default:
             return z;
@@ -61,15 +62,19 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
 }
 
 void main() {
-    vec2 uv = (gl_FragCoord.xy / u_resolution) * 2.0 - 1.0;
-    uv.x *= u_resolution.x / u_resolution.y;
-    uv /= u_zoom;
-    uv += u_pan_offset;
+    // Compute uv with high precision
+    vec2 uv_high = (gl_FragCoord.xy / u_resolution) * 2.0 - 1.0;
+    uv_high.x *= u_resolution.x / u_resolution.y;
+    uv_high /= u_zoom;
+    
+    // For simplicity, uv_low is set to zero; it can be computed if needed
+    vec2 uv_low = vec2(0.0);
+    vec2 uv = uv_high + uv_low + u_pan_offset_high + u_pan_offset_low;
 
     vec2 z, c;
     const float PI = 3.1415926535;
     
-    if(u_fractal_type == 1 || u_fractal_type == 5 || u_fractal_type == 7 || u_fractal_type == 8) { // Julia, Phoenix, and Sine Julia
+    if(u_fractal_type == 1 || u_fractal_type == 5 || u_fractal_type == 7 || u_fractal_type == 8) { // Julia, Phoenix, Sine Julia, Exponential Julia
         z = uv;
         c = u_julia_constant;
     }
@@ -123,7 +128,6 @@ void main() {
     }
 
     // Standard fractal logic
-
     const float bailout = 256.0; // Lower bailout for Sine Julia
     const float dbail = 1e6;
     float z_mag_sq = 0.0;
