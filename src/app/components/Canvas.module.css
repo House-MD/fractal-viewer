@@ -1,0 +1,101 @@
+.controlPanel {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(110, 57, 137, 0.5);
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  color: white;
+  font-family: Arial, sans-serif;
+  width: 300px;
+  display: flex;
+  flex-direction: column; 
+  transition: opacity 0.3s ease, transform 0.3s ease; 
+  max-height: 95vh; 
+  overflow-y: auto; 
+}
+
+.controlPanel.open {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.controlPanel.closed {
+  opacity: 0;
+  transform: translateX(-100%);
+  pointer-events: none; 
+}
+
+.showControlsButton {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  padding: 5px 10px;
+  background: #444;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.controlSection {
+  margin-bottom: 20px;
+}
+
+.controlSection h3 {
+  margin-bottom: 10px;
+  font-size: 1.2em;
+  border-bottom: 1px solid #555;
+  padding-bottom: 5px;
+}
+
+.controlPanel label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.controlPanel input[type="range"] {
+  width: 100%;
+  margin-top: 5px;
+}
+
+.controlPanel select {
+  width: 100%;
+  padding: 5px;
+  margin-top: 5px;
+  background: #222;
+  color: white;
+  border: 1px solid #444;
+  border-radius: 5px;
+}
+
+.controlPanel button {
+  padding: 5px 10px;
+  background: #444;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-right: 5px;
+  margin-bottom: 5px;
+}
+
+.controlPanel button:hover {
+  background: #666;
+}
+
+@media (max-width: 768px) {
+  .controlPanel {
+    width: 200px;
+  }
+  .controlSection h3 {
+    font-size: 1em;
+  }
+  .controlPanel label,
+  .controlPanel select,
+  .controlPanel button {
+    font-size: 0.9em;
+  }
+}
