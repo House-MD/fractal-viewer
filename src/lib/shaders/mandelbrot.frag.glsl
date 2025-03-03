@@ -18,16 +18,22 @@ uniform vec2 u_p_constant;
 
 out vec4 fragColor;
 
-// Define fractal iteration function (unchanged)
+// Define fractal iteration function (unchanged except for new case)
 vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
     vec2 z_squared = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y);
     
     switch(u_fractal_type) {
-        case 0: return z_squared + c; // Mandelbrot
-        case 1: return z_squared + u_julia_constant; // Julia
-        case 2: z = abs(z); return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c; // Burning Ship
-        case 3: return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c; // Mandelbar
-        case 4: // Newton
+        case 0: 
+            return z_squared + c; // Mandelbrot
+        case 1: 
+            return z_squared + u_julia_constant; // Julia
+        case 2: 
+            z = abs(z); 
+            return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c; // Burning Ship (Mandelbrot variant)
+        case 3: 
+            return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c; // Mandelbar
+        case 4: {
+            // Newton
             vec2 z3 = vec2(
                 z.x*z.x*z.x - 3.0*z.x*z.y*z.y,
                 3.0*z.x*z.x*z.y - z.y*z.y*z.y
@@ -39,16 +45,26 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
                 (numerator.x*denominator.x + numerator.y*denominator.y) / denom,
                 (numerator.y*denominator.x - numerator.x*denominator.y) / denom
             );
-        case 5: return z_squared + c + u_p_constant * z_prev; // Phoenix
-        case 6: // Cubic Mandelbrot
+        }
+        case 5: 
+            return z_squared + c + u_p_constant * z_prev; // Phoenix
+        case 6: {
+            // Cubic Mandelbrot
             vec2 z_cubed = vec2(
                 z.x * z.x * z.x - 3.0 * z.x * z.y * z.y,
                 3.0 * z.x * z.x * z.y - z.y * z.y * z.y
             );
             return z_cubed + c;
-        case 7: return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y)) + u_julia_constant; // Sine Julia
-        case 8: return vec2(exp(z.x) * cos(z.y), exp(z.x) * sin(z.y)) + u_julia_constant; // Exponential Julia
-        default: return z;
+        }
+        case 7: 
+            return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y)) + u_julia_constant; // Sine Julia
+        case 8: 
+            return vec2(exp(z.x) * cos(z.y), exp(z.x) * sin(z.y)) + u_julia_constant; // Exponential Julia
+        case 9: 
+            z = abs(z);
+            return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c; // Burning Ship Julia
+        default: 
+            return z;
     }
 }
 
@@ -64,7 +80,8 @@ void main() {
     vec2 z, c;
     const float PI = 3.1415926535;
     
-    if(u_fractal_type == 1 || u_fractal_type == 5 || u_fractal_type == 7 || u_fractal_type == 8) { // Julia, Phoenix, Sine Julia, Exponential Julia
+    // For Julia-like fractals (including Burning Ship Julia)
+    if(u_fractal_type == 1 || u_fractal_type == 5 || u_fractal_type == 7 || u_fractal_type == 8 || u_fractal_type == 9) {
         z = uv;
         c = u_julia_constant;
     }
@@ -72,7 +89,7 @@ void main() {
         z = uv;
         c = vec2(0.0);
     }
-    else { // Mandelbrot variants (including Cubic Mandelbrot)
+    else { // Mandelbrot variants (including Cubic Mandelbrot and Burning Ship, type 2)
         z = vec2(0.0);
         c = uv;
     }
@@ -104,21 +121,21 @@ void main() {
         float angle = atan(z.y, z.x);
         float sector = floor((angle + PI) / (2.0 * PI / 3.0));
         vec3 rootColor;
-        if(sector < 0.5) {        // Root 1 (1, 0)
+        if(sector < 0.5) {        // Root 1
             rootColor = vec3(0.9, 0.4, 0.3);
-        } else if(sector < 1.5) { // Root 2 (-0.5, √3/2)
+        } else if(sector < 1.5) { // Root 2
             rootColor = vec3(0.3, 0.9, 0.4);
-        } else {                  // Root 3 (-0.5, -√3/2)
+        } else {                  // Root 3
             rootColor = vec3(0.3, 0.4, 0.9);
         }
         
-        float brightness = 1.0 - float(iterations)/float(u_max_iterations);
+        float brightness = 1.0 - float(iterations) / float(u_max_iterations);
         fragColor = vec4(rootColor * brightness, 1.0);
         return;
     }
 
     // Standard fractal logic
-    const float bailout = 256.0; // Lower bailout for Sine Julia
+    const float bailout = 256.0;
     const float dbail = 1e6;
     float z_mag_sq = 0.0;
     vec2 z_prev = vec2(0.0);
@@ -177,13 +194,7 @@ void main() {
     vec3 color1 = 0.5 + 0.5 * cos(index1 + vec3(0.0, 2.0 * PI / 3.0, 4.0 * PI / 3.0));
     vec3 color2 = 0.5 + 0.5 * cos(index2 + vec3(0.0, 2.0 * PI / 3.0, 4.0 * PI / 3.0));
 
-    vec3 rgb;
-    if (!escaped) {
-        rgb = vec3(0.0);
-    } else {
-        rgb = mix(color1, color2, t);
-    }
-
+    vec3 rgb = escaped ? mix(color1, color2, t) : vec3(0.0);
     float gray = dot(rgb, vec3(0.299, 0.587, 0.114));
     vec3 desaturated = mix(vec3(gray), rgb, u_saturation);
 
