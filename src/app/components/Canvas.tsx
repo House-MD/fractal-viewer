@@ -85,6 +85,7 @@ export default function Canvas() {
   // Interaction state
   const dragRef = useRef({ isDragging: false, lastX: 0, lastY: 0 });
   const panOffsetRef = useRef({ x: new Decimal(0), y: new Decimal(0) });
+  const pinchRef = useRef({ isPinching: false, distance: 0 });
 
   // Fractal state
   const [fractalType, setFractalType] = useState<FractalType>('mandelbrot');
@@ -198,13 +199,29 @@ export default function Canvas() {
     };
   }, [mounted, staticArrays]);
 
-  // Setup interaction handlers
+  // Calculate distance between two touch points
+  const getTouchDistance = (touch1: Touch, touch2: Touch): number => {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Get center point between two touches
+  const getTouchCenter = (touch1: Touch, touch2: Touch): { x: number, y: number } => {
+    return {
+      x: (touch1.clientX + touch2.clientX) / 2,
+      y: (touch1.clientY + touch2.clientY) / 2
+    };
+  };
+
+  // Setup interaction handlers (including touch)
   useEffect(() => {
     if (!mounted) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Mouse event handlers
     const handleMouseDown = (e: MouseEvent) => {
       dragRef.current.isDragging = true;
       dragRef.current.lastX = e.clientX;
@@ -249,16 +266,108 @@ export default function Canvas() {
       panOffsetRef.current.y = fractalY.minus(ndcY.div(newZoomLevel));
     };
 
+    // Touch event handlers
+    const handleTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+
+      if (e.touches.length === 1) {
+        // Single touch - start drag
+        dragRef.current.isDragging = true;
+        dragRef.current.lastX = e.touches[0].clientX;
+        dragRef.current.lastY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        // Two touches - start pinch
+        dragRef.current.isDragging = false;
+        pinchRef.current.isPinching = true;
+        pinchRef.current.distance = getTouchDistance(e.touches[0], e.touches[1]);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+
+      if (dragRef.current.isDragging && e.touches.length === 1) {
+        // Handle pan
+        const touch = e.touches[0];
+        const deltaX = new Decimal(touch.clientX - dragRef.current.lastX);
+        const deltaY = new Decimal(touch.clientY - dragRef.current.lastY);
+        const zoomAdjustedDeltaX = deltaX.times(0.0015).div(stateRef.current.zoomLevel);
+        const zoomAdjustedDeltaY = deltaY.times(0.0015).div(stateRef.current.zoomLevel);
+
+        panOffsetRef.current.x = panOffsetRef.current.x.minus(zoomAdjustedDeltaX);
+        panOffsetRef.current.y = panOffsetRef.current.y.plus(zoomAdjustedDeltaY);
+
+        dragRef.current.lastX = touch.clientX;
+        dragRef.current.lastY = touch.clientY;
+      } 
+      else if (pinchRef.current.isPinching && e.touches.length === 2) {
+        // Handle pinch zoom
+        const newDistance = getTouchDistance(e.touches[0], e.touches[1]);
+        const zoomFactor = new Decimal(newDistance / pinchRef.current.distance);
+        
+        // Get center of pinch to zoom around that point
+        const center = getTouchCenter(e.touches[0], e.touches[1]);
+        
+        const ndcX = new Decimal((center.x / canvas.clientWidth * 2.0 - 1.0) * (canvas.width / canvas.height));
+        const ndcY = new Decimal(-(center.y / canvas.clientHeight * 2.0 - 1.0));
+
+        const fractalX = ndcX.div(stateRef.current.zoomLevel).plus(panOffsetRef.current.x);
+        const fractalY = ndcY.div(stateRef.current.zoomLevel).plus(panOffsetRef.current.y);
+
+        const newZoomLevel = stateRef.current.zoomLevel.times(zoomFactor);
+        setZoomLevel(newZoomLevel);
+
+        panOffsetRef.current.x = fractalX.minus(ndcX.div(newZoomLevel));
+        panOffsetRef.current.y = fractalY.minus(ndcY.div(newZoomLevel));
+
+        pinchRef.current.distance = newDistance;
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      
+      // If no more touches or only one touch remains
+      if (e.touches.length < 2) {
+        pinchRef.current.isPinching = false;
+      }
+      
+      // If no touches remain
+      if (e.touches.length === 0) {
+        dragRef.current.isDragging = false;
+      } 
+      // If one touch remains after pinching, reinitialize drag from that touch
+      else if (e.touches.length === 1 && !dragRef.current.isDragging) {
+        dragRef.current.isDragging = true;
+        dragRef.current.lastX = e.touches[0].clientX;
+        dragRef.current.lastY = e.touches[0].clientY;
+      }
+    };
+
+    // mouse event listeners
     canvas.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     canvas.addEventListener('wheel', handleWheel, { passive: false });
 
+    //touch event listeners
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
     return () => {
+      // Remove mouse event listeners
       canvas.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       canvas.removeEventListener('wheel', handleWheel);
+
+      // Remove touch event listeners
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchend', handleTouchEnd);
+      canvas.removeEventListener('touchcancel', handleTouchEnd);
     };
   }, [mounted]);
 
@@ -352,10 +461,10 @@ export default function Canvas() {
       const centerX = 0.0;
       const centerY = 5.0;
 
-      const left = centerX - (fernWidth / 2) / state.zoomLevel.toNumber() + panOffsetRef.current.x.toNumber();
-      const right = centerX + (fernWidth / 2) / state.zoomLevel.toNumber() + panOffsetRef.current.x.toNumber();
-      const bottom = centerY - (fernHeight / 2) / state.zoomLevel.toNumber() + panOffsetRef.current.y.toNumber();
-      const top = centerY + (fernHeight / 2) / state.zoomLevel.toNumber() + panOffsetRef.current.y.toNumber();
+      const left = centerX - (fernWidth / 2) / state.zoomLevel.toNumber() + panOffsetRef.current.x.toNumber()*7;
+      const right = centerX + (fernWidth / 2) / state.zoomLevel.toNumber() + panOffsetRef.current.x.toNumber()*7;
+      const bottom = centerY - (fernHeight / 2) / state.zoomLevel.toNumber() + panOffsetRef.current.y.toNumber()*7;
+      const top = centerY + (fernHeight / 2) / state.zoomLevel.toNumber() + panOffsetRef.current.y.toNumber()*7;
 
       const aspect = canvas.width / canvas.height;
       let modelViewProjection = aspect > 1 ?
@@ -458,6 +567,11 @@ export default function Canvas() {
     setMaxIterations(prev => Math.max(1, Math.floor(prev / 2)));
   }, []);
 
+  // Mobile-friendly UI elements
+  const toggleControlPanel = useCallback(() => {
+    setIsPanelOpen(prev => !prev);
+  }, []);
+
   // Only render if mounted
   if (!mounted) return null;
 
@@ -470,13 +584,14 @@ export default function Canvas() {
           width: '100vw',
           height: '100vh',
           cursor: dragRef.current.isDragging ? 'grabbing' : 'grab',
+          touchAction: 'none' // Prevent browser handling of touch events
         }}
       />
 
       {/* Show Controls Button (Visible when panel is closed) */}
       {!isPanelOpen && (
         <button
-          onClick={() => setIsPanelOpen(true)}
+          onClick={toggleControlPanel}
           className={styles.showControlsButton}
         >
           Show Controls
@@ -485,18 +600,20 @@ export default function Canvas() {
 
       {/* Control Panel */}
       <div className={`${styles.controlPanel} ${isPanelOpen ? styles.open : styles.closed}`}>
-        <button onClick={() => setIsPanelOpen(false)}>Hide Controls</button>
+        <button onClick={toggleControlPanel} className={styles.controlButton}>
+          {isPanelOpen ? 'Hide Controls' : 'Show Controls'}
+        </button>
 
         {/* Presets Section */}
         <div className={styles.controlSection}>
           <h3>Presets</h3>
-          <button onClick={handleClassicMandelbrotPreset} title="Reset to classic Mandelbrot fractal">
+          <button onClick={handleClassicMandelbrotPreset} title="Reset to classic Mandelbrot fractal" className={styles.controlButton}>
             Classic Mandelbrot
           </button>
-          <button onClick={handleJuliaSetPreset} title="Set to a popular Julia set">
+          <button onClick={handleJuliaSetPreset} title="Set to a popular Julia set" className={styles.controlButton}>
             Julia Set
           </button>
-          <button onClick={handlePhoenixPreset} title="Set to Phoenix fractal">
+          <button onClick={handlePhoenixPreset} title="Set to Phoenix fractal" className={styles.controlButton}>
             Phoenix
           </button>
         </div>
@@ -504,7 +621,7 @@ export default function Canvas() {
         {/* Color Settings Section */}
         <div className={styles.controlSection}>
           <h3>Color Settings</h3>
-          <label title="Adjusts the starting point of the color cycle">
+          <label title="Adjusts the starting point of the color cycle" className={styles.controlLabel}>
             Hue Phase: {colorSettings.huePhase.toFixed(2)}
             <input
               type="range"
@@ -513,9 +630,10 @@ export default function Canvas() {
               step="0.01"
               value={colorSettings.huePhase}
               onChange={(e) => setColorSettings((prev) => ({ ...prev, huePhase: parseFloat(e.target.value) }))}
+              className={styles.controlRange}
             />
           </label>
-          <label title="Controls how quickly the colors change">
+          <label title="Controls how quickly the colors change" className={styles.controlLabel}>
             Color Speed: {colorSettings.colorSpeed.toFixed(1)}
             <input
               type="range"
@@ -524,9 +642,10 @@ export default function Canvas() {
               step="0.1"
               value={colorSettings.colorSpeed}
               onChange={(e) => setColorSettings((prev) => ({ ...prev, colorSpeed: parseFloat(e.target.value) }))}
+              className={styles.controlRange}
             />
           </label>
-          <label title="Adjusts the intensity of the colors">
+          <label title="Adjusts the intensity of the colors" className={styles.controlLabel}>
             Saturation: {colorSettings.saturation.toFixed(2)}
             <input
               type="range"
@@ -535,6 +654,7 @@ export default function Canvas() {
               step="0.01"
               value={colorSettings.saturation}
               onChange={(e) => setColorSettings((prev) => ({ ...prev, saturation: parseFloat(e.target.value) }))}
+              className={styles.controlRange}
             />
           </label>
         </div>
@@ -542,8 +662,12 @@ export default function Canvas() {
         {/* Fractal Type Section */}
         <div className={styles.controlSection}>
           <h3>Fractal Type</h3>
-          <label title="Select the type of fractal to display">
-            <select value={fractalType} onChange={(e) => setFractalType(e.target.value as FractalType)}>
+          <label title="Select the type of fractal to display" className={styles.controlLabel}>
+            <select 
+              value={fractalType} 
+              onChange={(e) => setFractalType(e.target.value as FractalType)}
+              className={styles.controlSelect}
+            >
               <option value="mandelbrot">Mandelbrot</option>
               <option value="julia">Julia</option>
               <option value="burningShip">Burning Ship</option>
@@ -563,7 +687,7 @@ export default function Canvas() {
         {['julia', 'burningShipJulia', 'sineJulia', 'expJulia', 'pheonix'].includes(fractalType) && (
           <div className={styles.controlSection}>
             <h3>Julia Settings</h3>
-            <label title="Real part of the Julia constant">
+            <label title="Real part of the Julia constant" className={styles.controlLabel}>
               Julia Real: {juliaConstant[0].toFixed(2)}
               <input
                 type="range"
