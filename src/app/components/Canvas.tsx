@@ -89,7 +89,12 @@ export default function Canvas() {
 
   // Fractal state
   const [fractalType, setFractalType] = useState<FractalType>('mandelbrot');
-  const [colorSettings, setColorSettings] = useState({ huePhase: 3.0, colorSpeed: 0.1, saturation: 0.7 });
+  const [colorSettings, setColorSettings] = useState({
+    huePhase: 3.0,
+    colorSpeed: 0.1,
+    saturation: 0.7,
+    animateHue: false
+  });
   const [zoomLevel, setZoomLevel] = useState(new Decimal(1.0));
   const [juliaConstant, setJuliaConstant] = useState([-0.4, 0.6]);
   const [pheonixConstant, setPheonixConstant] = useState([0.3, 0.4]);
@@ -498,11 +503,14 @@ export default function Canvas() {
     ) => {
       const state = stateRef.current;
 
-      // Calculate pan offset when needed
+      const effectiveHuePhase = state.colorSettings.animateHue
+    ? (state.colorSettings.huePhase + time * 0.01 * state.colorSettings.colorSpeed) % (2 * Math.PI)
+    : state.colorSettings.huePhase;
+
+      // Calculate pan offset
       const panXSplit = splitDecimalToFloats(panOffsetRef.current.x);
       const panYSplit = splitDecimalToFloats(panOffsetRef.current.y);
 
-      // Combine dynamic uniforms with static ones
       const uniforms = {
         u_resolution: [canvas.width, canvas.height],
         u_time: time * 0.001,
@@ -511,7 +519,7 @@ export default function Canvas() {
         u_fractal_type: fractalTypeToValue[state.fractalType] || 0,
         u_pan_offset_high: [panXSplit.high, panYSplit.high],
         u_pan_offset_low: [panXSplit.low, panYSplit.low],
-        u_hue_phase: state.colorSettings.huePhase,
+        u_hue_phase: effectiveHuePhase,
         u_color_speed: state.colorSettings.colorSpeed,
         u_saturation: state.colorSettings.saturation,
         u_zoom: state.zoomLevel.toNumber(),
@@ -540,21 +548,21 @@ export default function Canvas() {
   // Preset handlers - memoized to avoid recreating on every render
   const handleClassicMandelbrotPreset = useCallback(() => {
     setFractalType('mandelbrot');
-    setColorSettings({ huePhase: 3.0, colorSpeed: 0.1, saturation: 0.7 });
+    setColorSettings({ huePhase: 3.0, colorSpeed: 0.1, saturation: 0.7, animateHue: false });
     setMaxIterations(100);
   }, []);
 
   const handleJuliaSetPreset = useCallback(() => {
     setFractalType('julia');
     setJuliaConstant([-0.4, 0.6]);
-    setColorSettings({ huePhase: 3.0, colorSpeed: 0.1, saturation: 0.7 });
+    setColorSettings({ huePhase: 3.0, colorSpeed: 0.1, saturation: 0.7, animateHue: false });
     setMaxIterations(100);
   }, []);
 
   const handlePhoenixPreset = useCallback(() => {
     setFractalType('pheonix');
     setPheonixConstant([0.3, 0.4]);
-    setColorSettings({ huePhase: 3.0, colorSpeed: 0.1, saturation: 0.7 });
+    setColorSettings({ huePhase: 3.0, colorSpeed: 0.1, saturation: 0.7, animateHue: false });
     setMaxIterations(100);
   }, []);
 
@@ -599,27 +607,27 @@ export default function Canvas() {
       )}
 
       {/* Control Panel */}
-      <div className={`${styles.controlPanel} ${isPanelOpen ? styles.open : styles.closed}`}>
-        <button onClick={toggleControlPanel} className={styles.controlButton}>
-          {isPanelOpen ? 'Hide Controls' : 'Show Controls'}
-        </button>
+        <div className={`${styles.controlPanel} ${isPanelOpen ? styles.open : styles.closed}`}>
+          <button onClick={toggleControlPanel} className={styles.controlButton}>
+            {isPanelOpen ? 'Hide Controls' : 'Show Controls'}
+          </button>
 
-        {/* Presets Section */}
-        <div className={styles.controlSection}>
-          <h3>Presets</h3>
-          <button onClick={handleClassicMandelbrotPreset} title="Reset to classic Mandelbrot fractal" className={styles.controlButton}>
-            Classic Mandelbrot
-          </button>
-          <button onClick={handleJuliaSetPreset} title="Set to a popular Julia set" className={styles.controlButton}>
-            Julia Set
-          </button>
-          <button onClick={handlePhoenixPreset} title="Set to Phoenix fractal" className={styles.controlButton}>
-            Phoenix
-          </button>
-        </div>
+          {/* Presets Section */}
+          <div className={styles.controlSection}>
+            <h3>Presets</h3>
+            <button onClick={handleClassicMandelbrotPreset} title="Reset to classic Mandelbrot fractal" className={styles.controlButton}>
+              Classic Mandelbrot
+            </button>
+            <button onClick={handleJuliaSetPreset} title="Set to a popular Julia set" className={styles.controlButton}>
+              Julia Set
+            </button>
+            <button onClick={handlePhoenixPreset} title="Set to Phoenix fractal" className={styles.controlButton}>
+              Phoenix
+            </button>
+          </div>
 
-        {/* Color Settings Section */}
-        <div className={styles.controlSection}>
+          {/* Color Settings Section */}
+          <div className={styles.controlSection}>
           <h3>Color Settings</h3>
           <label title="Adjusts the starting point of the color cycle" className={styles.controlLabel}>
             Hue Phase: {colorSettings.huePhase.toFixed(2)}
@@ -657,6 +665,14 @@ export default function Canvas() {
               className={styles.controlRange}
             />
           </label>
+          <label title="Toggle hue animation" className={styles.controlLabel}>
+            <input
+              type="checkbox"
+              checked={colorSettings.animateHue}
+              onChange={(e) => setColorSettings((prev) => ({ ...prev, animateHue: e.target.checked }))}
+            />
+            Animate Hue
+          </label>
         </div>
 
         {/* Fractal Type Section */}
@@ -691,8 +707,8 @@ export default function Canvas() {
               Julia Real: {juliaConstant[0].toFixed(2)}
               <input
                 type="range"
-                min="-1.0"
-                max="1.0"
+                min={fractalType === 'burningShipJulia' ? -3 : -1}
+                max={fractalType === 'burningShipJulia' ? 3 : 1}
                 step="0.000001"
                 value={juliaConstant[0]}
                 onChange={(e) => setJuliaConstant([parseFloat(e.target.value), juliaConstant[1]])}
@@ -702,8 +718,8 @@ export default function Canvas() {
               Julia Imag: {juliaConstant[1].toFixed(2)}
               <input
                 type="range"
-                min="-1.0"
-                max="1.0"
+                min={fractalType === 'burningShipJulia' ? -3 : -1}
+                max={fractalType === 'burningShipJulia' ? 3 : 1}
                 step="0.000001"
                 value={juliaConstant[1]}
                 onChange={(e) => setJuliaConstant([juliaConstant[0], parseFloat(e.target.value)])}
