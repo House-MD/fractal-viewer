@@ -62,7 +62,7 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
             return vec2(exp(z.x) * cos(z.y), exp(z.x) * sin(z.y)) + u_julia_constant; // Exponential Julia
         case 9: 
             z = abs(z);
-            return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c; // Burning Ship Julia
+            return vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + u_julia_constant; // Burning Ship Julia
         default: 
             return z;
     }
