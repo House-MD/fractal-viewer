@@ -6,6 +6,8 @@ interface RenderingControlsProps {
   maxIterations: number;
   handleIncreaseIterations: () => void;
   handleDecreaseIterations: () => void;
+  zoomLevel: number;
+  currentResolution: { width: number; height: number };
 }
 
 export function RenderingControls({
@@ -14,7 +16,19 @@ export function RenderingControls({
   maxIterations,
   handleIncreaseIterations,
   handleDecreaseIterations,
+  zoomLevel,
+  currentResolution,
 }: RenderingControlsProps) {
+  // Calculate adjusted iterations based on zoom level
+  const zoomFactor = Math.log2(zoomLevel);
+  const adjustedIterations = Math.min(
+    Math.max(maxIterations, Math.floor(100 + zoomFactor * 20)),
+    1000
+  );
+
+  // Calculate resolution percentage
+  const resolutionPercentage = Math.round((currentResolution.width / window.innerWidth) * 100);
+
   return (
     <>
       <div className={styles.controlSection}>
@@ -31,11 +45,16 @@ export function RenderingControls({
 
       <div className={styles.controlSection}>
         <h3>Iteration Settings</h3>
+        <div className={styles.iterationInfo}>
+          <p>Base Iterations: {maxIterations}</p>
+          <p>Adjusted for Zoom: {adjustedIterations}</p>
+          <p>Current Resolution: {resolutionPercentage}%</p>
+        </div>
         <button onClick={handleIncreaseIterations} title="Double the number of iterations">
-          Increase Iterations (Current: {maxIterations})
+          Increase Base Iterations
         </button>
         <button onClick={handleDecreaseIterations} title="Halve the number of iterations">
-          Decrease Iterations
+          Decrease Base Iterations
         </button>
       </div>
     </>

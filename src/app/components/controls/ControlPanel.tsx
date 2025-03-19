@@ -34,6 +34,8 @@ interface ControlPanelProps {
   handleMandalaPreset: () => void;
   handleCosmicWebPreset: () => void;
   handleGoldenWheelPreset: () => void;
+  zoomLevel: number;
+  currentResolution: { width: number; height: number };
 }
 
 export function ControlPanel({
@@ -59,6 +61,8 @@ export function ControlPanel({
   handleMandalaPreset,
   handleCosmicWebPreset,
   handleGoldenWheelPreset,
+  zoomLevel,
+  currentResolution,
 }: ControlPanelProps) {
   return (
     <>
@@ -131,6 +135,8 @@ export function ControlPanel({
           maxIterations={maxIterations}
           handleIncreaseIterations={handleIncreaseIterations}
           handleDecreaseIterations={handleDecreaseIterations}
+          zoomLevel={zoomLevel}
+          currentResolution={currentResolution}
         />
       </div>
     </>

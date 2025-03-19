@@ -42,7 +42,15 @@ export default function Canvas() {
   });
 
   // Initialize WebGL renderer
-  useWebGLRenderer({
+  const {
+    glRef,
+    programInfoRef,
+    pointProgramInfoRef,
+    bufferInfoRef,
+    barnsleyBufferInfoRef,
+    animationFrameRef,
+    currentResolutionRef,
+  } = useWebGLRenderer({
     canvasRef,
     mounted,
     fractalType,
@@ -176,6 +184,8 @@ export default function Canvas() {
         handleMandalaPreset={handleMandalaPreset}
         handleCosmicWebPreset={handleCosmicWebPreset}
         handleGoldenWheelPreset={handleGoldenWheelPreset}
+        zoomLevel={zoomLevel.toNumber()}
+        currentResolution={currentResolutionRef.current}
       />
     </div>
   );

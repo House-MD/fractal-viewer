@@ -29,5 +29,5 @@ export const fractalTypeToValue = {
   'cubicMandelbrot': 6,
   'sineJulia': 7,
   'expJulia': 8,
-  'barnsleyFern': 0
+  'barnsleyFern': 10
 }; 

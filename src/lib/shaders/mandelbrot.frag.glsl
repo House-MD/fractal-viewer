@@ -7,6 +7,8 @@ uniform vec2 u_julia_constant;
 uniform int u_fractal_type;
 uniform vec2 u_pan_offset_high; // High part of the pan offset
 uniform vec2 u_pan_offset_low;  // Low part of the pan offset
+uniform vec2 u_center_high;
+uniform vec2 u_center_low;
 uniform float u_hue_phase;
 uniform float u_color_speed;
 uniform float u_saturation;
@@ -15,8 +17,29 @@ uniform float u_zoom;
 uniform bool u_use_derbail;
 uniform int u_max_iterations;
 uniform vec2 u_p_constant;
+uniform float u_bailout;
+uniform float u_dbail;
 
 out vec4 fragColor;
+
+// Helper function for high-precision addition
+vec2 add_hp(vec2 a_high, vec2 a_low, vec2 b_high, vec2 b_low) {
+    vec2 sum = a_low + b_low;
+    vec2 err = b_low - (sum - a_low);
+    return a_high + b_high + sum + err;
+}
+
+// Helper function for high-precision multiplication
+vec2 mul_hp(vec2 a_high, vec2 a_low, vec2 b_high, vec2 b_low) {
+    // Compute high part
+    vec2 prod_high = a_high * b_high;
+    
+    // Compute low part with error compensation
+    vec2 prod_low = a_high * b_low + a_low * b_high + a_low * b_low;
+    vec2 err = prod_low - (prod_high + prod_low - prod_high);
+    
+    return prod_high + prod_low + err;
+}
 
 // Define fractal iteration function (unchanged except for new case)
 vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
@@ -69,13 +92,20 @@ vec2 fractalIteration(vec2 z, vec2 c, vec2 z_prev) {
 }
 
 void main() {
-    // Compute uv with enhanced precision
+    // Compute center-relative coordinates with enhanced precision
     vec2 center_coord = u_resolution / 2.0;
     vec2 delta_pixel = gl_FragCoord.xy - center_coord;
+    
+    // Calculate pixel step size based on zoom
     float pixel_step_x = (2.0 * (u_resolution.x / u_resolution.y)) / (u_resolution.x * u_zoom);
     float pixel_step_y = 2.0 / (u_resolution.y * u_zoom);
-    vec2 delta_c = vec2(delta_pixel.x * pixel_step_x, delta_pixel.y * pixel_step_y);
-    vec2 uv = u_pan_offset_high + (u_pan_offset_low + delta_c);
+    
+    // Convert pixel offset to coordinate space with improved precision
+    vec2 delta_coord = vec2(delta_pixel.x * pixel_step_x, delta_pixel.y * pixel_step_y);
+    
+    // Add pan offset using high-precision addition
+    vec2 uv = add_hp(u_pan_offset_high, u_pan_offset_low, 
+                     vec2(delta_coord.x, 0.0), vec2(0.0, delta_coord.y));
 
     vec2 z, c;
     const float PI = 3.1415926535;
@@ -135,8 +165,6 @@ void main() {
     }
 
     // Standard fractal logic
-    const float bailout = 256.0;
-    const float dbail = 1e6;
     float z_mag_sq = 0.0;
     vec2 z_prev = vec2(0.0);
 
@@ -153,7 +181,7 @@ void main() {
             z_prev = z;
             z = z_new;
             dc = dc_new;
-            if (dot(dc_sum, dc_sum) >= dbail) {
+            if (dot(dc_sum, dc_sum) >= u_dbail) {
                 z_mag_sq = dot(z, z);
                 escaped = true;
                 break;
@@ -171,7 +199,7 @@ void main() {
                 break;
             }
             prev_mag_sq = z_mag_sq;
-            if (z_mag_sq > bailout) {
+            if (z_mag_sq > u_bailout) {
                 escaped = true;
                 break;
             }
